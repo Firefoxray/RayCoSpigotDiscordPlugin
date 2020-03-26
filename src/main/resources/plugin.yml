@@ -3,3 +3,4 @@ version: ${project.version}
 main: me.rayco.raycodiscordbot.RayCoDiscordBot
 authors: [RayCo]
 description: This is a plugin to make my Minecraft Server communicate with my Discord Server.
+load: STARTUP

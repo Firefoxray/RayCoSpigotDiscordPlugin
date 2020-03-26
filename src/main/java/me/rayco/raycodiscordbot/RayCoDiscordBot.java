@@ -1,7 +1,7 @@
 package me.rayco.raycodiscordbot;
 
-import me.rayco.raycodiscordbot.discordEvents.DisplayMessageEvent;
-import me.rayco.raycodiscordbot.discordEvents.ServerInfoEvent;
+import me.rayco.raycodiscordbot.discordEvents.DisplayOnDiscord;
+import me.rayco.raycodiscordbot.discordEvents.GuildMessageReceived;
 import net.dv8tion.jda.api.AccountType;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
@@ -19,100 +19,117 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitScheduler;
+import java.awt.Color;
 
 //TODO
-//Think about removing discord sleep messages
+//***Think about removing discord sleep messages
 //Add Server Info Command (Add Prefix)
-//Make Player Count command
-//Add Config (Auto Generate after first time)
-//Add Changeable Tokens and Channel ID (Into Config)
+//***Make Player Count command
+//***Add Config (Auto Generate after first time)
+//***Add Changeable Tokens and Channel ID (Into Config)
 //Make prescence display player count
-
-
-
 
 public final class RayCoDiscordBot extends JavaPlugin implements Listener {
     public static JDA jda;
     private World world;
-
-
+    public static String token;
+    public static String channelID;
+    public static String botPrefix;
+    public static int loadMsgCount = 0;
 
     @Override
     public void onEnable() {
         // Plugin startup logic
         System.out.println("Ray Co. Spigot Bot Loaded");
+
+        getConfig().options().copyDefaults();
+        saveDefaultConfig();
+        token = getConfig().getString("botToken");
+        channelID = getConfig().getString("channelID");
+        botPrefix = getConfig().getString("botPrefix");
+
         try {
             botOnline();
-        } catch (Exception e){
+        } catch (Exception e) {
             //Enabled Discord API Bot
         }
-        getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
-            @Override
-            public void run() {
-                DisplayMessageEvent.displaySpigotMessage("Server Started", jda);
-            }
-        }); //Send Start Message
         getServer().getPluginManager().registerEvents(this,this);
     }
 
     public void botOnline() throws Exception{
         this.jda = new JDABuilder(AccountType.BOT)
-                .setToken("NjkyMjU1MjM0NTI5MTY1MzIy.Xnr3Lw.1Ug7Ee9uqfFo7frFTzaSRdNcqsA")
-                .addEventListeners(new ServerInfoEvent())
+                .setToken(token)
                 .setAutoReconnect(true).build();
+        jda.addEventListener(new GuildMessageReceived());
         jda.getPresence().setActivity(Activity.playing("Ray Co. Quarantine Server"));
         System.out.println("Discord API Online");
     }
 
     @EventHandler
+    public void serverLoaded(WorldLoadEvent event){
+        if (loadMsgCount == 0){
+            DisplayOnDiscord.displayOnDiscord("Server Started", jda, Color.cyan);
+            loadMsgCount = 1;
+        }
+    }
+    @EventHandler
     public void playerJoin(PlayerJoinEvent event){
-        String joinedPlayer = event.getPlayer().getDisplayName();
-        String joinPlayerMessage = (joinedPlayer + " Has Logged In");
-        DisplayMessageEvent.displaySpigotMessage(joinPlayerMessage, jda);
+        if(getConfig().getBoolean("playerJoinLeaveBroadcast")){
+            String joinedPlayer = event.getPlayer().getDisplayName();
+            String joinPlayerMessage = (joinedPlayer + " Has Logged In");
+            DisplayOnDiscord.displayOnDiscord(joinPlayerMessage, jda, Color.green);
+        }
     }
 
     @EventHandler
     public void playerLeave(PlayerQuitEvent event){
-        String quitingPlayer = event.getPlayer().getDisplayName();
-        String quittingPlayerMessage = (quitingPlayer + " Has Left");
-        DisplayMessageEvent.displaySpigotMessage(quittingPlayerMessage, jda);
+        if(getConfig().getBoolean("playerJoinLeaveBroadcast")){
+            String quitingPlayer = event.getPlayer().getDisplayName();
+            String quittingPlayerMessage = (quitingPlayer + " Has Left");
+            DisplayOnDiscord.displayOnDiscord(quittingPlayerMessage, jda, Color.red);
+        }
     }
 
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event){
-        String deathMessage = event.getDeathMessage();
-        DisplayMessageEvent.displaySpigotMessage(deathMessage, jda);
+        if(getConfig().getBoolean("playerDeathBroadcast")){
+            String deathMessage = event.getDeathMessage();
+            DisplayOnDiscord.displayOnDiscord(deathMessage, jda, Color.red);
+        }
     }
 
     @EventHandler
     public void onEnterBed(PlayerBedEnterEvent event){
-        Player player = event.getPlayer();
-        String bedPlayer = event.getPlayer().getDisplayName();
-        String botMessage = (bedPlayer + " Is Now In Bed.");
-        Bukkit.broadcastMessage(ChatColor.GOLD + botMessage);
-        BukkitScheduler scheduler = getServer().getScheduler();
+        if (getConfig().getBoolean("sleepFix")){
+            Player player = event.getPlayer();
+            String bedPlayer = event.getPlayer().getDisplayName();
+            String botMessage = (bedPlayer + " Is Now In Bed.");
+            Bukkit.broadcastMessage(ChatColor.GOLD + botMessage);
+            BukkitScheduler scheduler = getServer().getScheduler();
 
-        while (player.isSleeping()){
             scheduler.scheduleSyncDelayedTask(this, new Runnable() {
                 @Override
                 public void run() {
-                    Bukkit.broadcastMessage(ChatColor.GOLD + "It Is Now Morning.");
-                    player.getLocation().getWorld().setTime(0);
+                    if(player.isSleeping()){
+                        Bukkit.broadcastMessage(ChatColor.GOLD + "It Is Now Morning.");
+                        player.getLocation().getWorld().setTime(0);
+                        player.setHealth(40.0);
+                        player.setFoodLevel(20);
+                        player.sendMessage(ChatColor.GOLD + "Health and Food Has Been Restored");
+                    }
                 }
             }, 100L);
         }
-
-
-        DisplayMessageEvent.displaySpigotMessage(botMessage, jda);
     }
 
     @EventHandler
     public void setSpawnPointBed(PlayerInteractEvent event){
-        if(event.getAction() == Action.RIGHT_CLICK_BLOCK){
-            if(event.getClickedBlock().getType() == Material.BED_BLOCK){
-                //event.getPlayer().setBedSpawnLocation(event.getPlayer().getLocation(), true);
-                event.getPlayer().setBedSpawnLocation(event.getClickedBlock().getLocation(), true);
-                event.getPlayer().sendMessage(ChatColor.GOLD + "Your spawnpoint has been set");
+        if(getConfig().getBoolean("spawnpointFix")){
+            if(event.getAction() == Action.RIGHT_CLICK_BLOCK){
+                if(event.getClickedBlock().getType() == Material.BED_BLOCK){
+                    event.getPlayer().setBedSpawnLocation(event.getClickedBlock().getLocation(), true);
+                    event.getPlayer().sendMessage(ChatColor.GOLD + "Your spawnpoint has been set");
+                }
             }
         }
     }

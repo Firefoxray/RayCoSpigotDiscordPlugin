@@ -1,0 +1,10 @@
+#Ray Co Discord Spigot Plugin Configuration
+botToken: ''
+channelID: ''
+botPrefix: '?'
+
+#Enable Commands
+sleepFix: true
+spawnpointFix: true
+playerJoinLeaveBroadcast: true
+playerDeathBroadcast: true
