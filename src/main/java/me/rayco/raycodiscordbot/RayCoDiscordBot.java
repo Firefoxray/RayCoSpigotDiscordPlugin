@@ -136,7 +136,7 @@ public final class RayCoDiscordBot extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
-        // Plugin shutdown logic
+        DisplayOnDiscord.displayOnDiscord("Server Shutdown", jda, Color.cyan);
         System.out.println("Ray Co. Discord Bot Unloaded");
     }
 }
