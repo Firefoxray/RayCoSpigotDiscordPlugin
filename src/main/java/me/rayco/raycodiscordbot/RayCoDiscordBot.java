@@ -2,6 +2,8 @@ package me.rayco.raycodiscordbot;
 
 import me.rayco.raycodiscordbot.discordEvents.DisplayOnDiscord;
 import me.rayco.raycodiscordbot.discordEvents.GuildMessageReceived;
+import me.rayco.raycodiscordbot.discordEvents.GuildVoiceJoin;
+import me.rayco.raycodiscordbot.discordEvents.GuildVoiceLeave;
 import net.dv8tion.jda.api.AccountType;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
@@ -61,6 +63,8 @@ public final class RayCoDiscordBot extends JavaPlugin implements Listener {
                 .setToken(token)
                 .setAutoReconnect(true).build();
         jda.addEventListener(new GuildMessageReceived());
+        jda.addEventListener(new GuildVoiceJoin());
+        jda.addEventListener(new GuildVoiceLeave());
         jda.getPresence().setActivity(Activity.playing("Ray Co. Quarantine Server"));
         System.out.println("Discord API Online");
     }
@@ -112,10 +116,10 @@ public final class RayCoDiscordBot extends JavaPlugin implements Listener {
                 public void run() {
                     if(player.isSleeping()){
                         Bukkit.broadcastMessage(ChatColor.GOLD + "It Is Now Morning.");
-                        player.getLocation().getWorld().setTime(0);
-                        player.setHealth(40.0);
+                        player.setHealth(50.0);
                         player.setFoodLevel(20);
                         player.sendMessage(ChatColor.GOLD + "Health and Food Has Been Restored");
+                        player.getLocation().getWorld().setTime(0); //Do everything before this
                     }
                 }
             }, 100L);
